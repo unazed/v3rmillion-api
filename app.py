@@ -1,8 +1,5 @@
 import sys
 import time
-import pprint
-
-from functools import wraps
 
 try:
 
@@ -26,6 +23,8 @@ class API(object):
     alerts_url = "https://v3rmillion.net/alerts.php"
     pm_url = "https://v3rmillion.net/private.php"
     pm_send_url = "https://v3rmillion.net/private.php?action=send"
+    usersearch_url = "https://v3rmillion.net/memberlist.php?sort=username&order=ascending&perpage=500&username=%s&page=%d"
+    profile_url = "https://v3rmillion.net/member.php?action=profile&uid=%s"
     max_alert_listing = 10
 
     try:
@@ -261,6 +260,86 @@ class API(object):
         
         self.driver.get(self.url)
 
+    def _get_profile(self, username=None, uid=None, page_depth=10):
+        if username is None and uid is None:
+            raise Exception("Either provide a username or a UID")
+
+        if uid is not None:
+            self.driver.get(self.profile_url % uid)
+
+            error = self.driver.find_elements_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr[2]/td")
+
+            if error and "The member you specified is either invalid or doesn't exist." in error[0].text:
+                raise LookupError("Couldn't find user by UID.")
+            thread_count = self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[5]/td[2]").text
+            thread_count = thread_count.split('(')[0]
+
+            post_count = self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[4]/td[2]").text
+            post_count = post_count.split('(')[0]
+
+            data = {
+                "username": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/fieldset/table/tbody/tr/td[1]/span[1]/strong/span/strong").text,
+                "status": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/fieldset/table/tbody/tr/td[1]/span[2]/a[1]/span").text,
+                "last_visit": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[3]/td[2]").text,
+                "joined": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[2]/td[2]").text,
+                "time_spent_online": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[6]/td[2]").text,
+                "signature": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[3]/table[1]/tbody/tr[2]/td").text,
+                "members_referred": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[7]/td[2]").text,
+                "thread_count": int(thread_count),
+                "post_count": int(post_count),
+                "reputation": int(self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[8]/td[2]/strong").text)
+            }
+
+            self.driver.get(self.url)
+
+            return data
+
+        found = False
+        
+        for page in range(1, page_depth+1):
+            if found:
+                break
+
+            self.driver.get(self.usersearch_url % (username, page))           
+            error = self.driver.find_elements_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr[3]/td")
+
+            if error and "There were no members found with the search criteria you entered." in error[0].text:
+                raise LookupError("Couldn't find user by username.")
+
+            for user in self.driver.find_elements_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr"):
+                name = user.find_element_by_xpath(".//a")
+                if name.text == username:
+                    name.click()
+                    found = True
+                    break
+
+        thread_count = self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[5]/td[2]").text
+        thread_count = thread_count.split('(')[0]
+
+        post_count = self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[4]/td[2]").text
+        post_count = post_count.split('(')[0]
+
+        data = {
+            "username": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/fieldset/table/tbody/tr/td[1]/span[1]/strong/span/strong").text,
+            "status": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/fieldset/table/tbody/tr/td[1]/span[2]/a[1]/span").text,
+            "last_visit": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[3]/td[2]").text,
+            "joined": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[2]/td[2]").text,
+            "time_spent_online": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[6]/td[2]").text,
+            "signature": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[3]/table[1]/tbody/tr[2]/td").text,
+            "members_referred": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[7]/td[2]").text,
+            "thread_count": int(thread_count),
+            "post_count": int(post_count),
+            "reputation": int(self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[8]/td[2]/strong").text)
+        }
+
+        self.driver.get(self.url)
+
+        return data
+
+    @requires_login
+    def reputation_read(self, username=None, uid=None):
+        return self._get_profile(username, uid)['reputation']           
+
     def close(self):
         # alias method for self.__del__()
 
@@ -272,4 +351,3 @@ class API(object):
         if not self._webdriver_closed:
             self.driver.close()
             self._webdriver_closed = True
-         
