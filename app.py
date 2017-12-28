@@ -157,7 +157,7 @@ class API(object):
         self._login = True
     
     @requires_login
-    def get_alert_count(self):
+    def alert_count_read(self):
         """
         Get the amount of alerts the user has
         """
@@ -169,7 +169,7 @@ class API(object):
         return alerts
 
     @requires_login
-    def get_pm_count(self):
+    def pm_count_read(self):
         """
         Get the PM count of the user
         """
@@ -181,7 +181,7 @@ class API(object):
         return pms
     
     @requires_login
-    def get_pm_alert_count(self):
+    def pm_alert_count_read(self):
         """
         Retrieve the PM and alert count of the user, to be used when
         the API user doesn't want to refresh twice in order to obtain
@@ -203,7 +203,7 @@ class API(object):
         }
 
     @requires_login
-    def get_latest_n_alerts(self, n):
+    def latest_n_alerts_read(self, n):
         """
         Retrieve n amount of alerts upto (typically) 10 as
         that is where the page cuts off and I doubt anyone
@@ -219,7 +219,7 @@ class API(object):
         alerts_table = self.driver.find_element_by_xpath("//tbody[contains(@id, 'latestAlertsListing')]")
         alert_rows = alerts_table.find_elements_by_xpath("//tr[contains(@class, 'alert-row')]")
 
-        for alert, _ in zip(alert_rows, range(n)):
+        for alert in alert_rows[:n]:
             try:
                 user_data, alert_data, date = alert.find_elements_by_xpath(".//td[contains(@class, 'trow')]")
             except ValueError:
