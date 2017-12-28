@@ -1,5 +1,6 @@
 import sys
 import time
+import re
 
 try:
 
@@ -25,6 +26,9 @@ class API(object):
     pm_send_url = "https://v3rmillion.net/private.php?action=send"
     usersearch_url = "https://v3rmillion.net/memberlist.php?sort=username&order=ascending&perpage=500&username=%s&page=%d"
     profile_url = "https://v3rmillion.net/member.php?action=profile&uid=%s"
+
+    uid_from_url = re.compile(r".+\?.+uid=(\d+)")
+
     max_alert_listing = 10
 
     try:
@@ -279,7 +283,7 @@ class API(object):
 
             data = {
                 "username": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/fieldset/table/tbody/tr/td[1]/span[1]/strong/span/strong").text,
-                "status": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/fieldset/table/tbody/tr/td[1]/span[2]/a[1]/span").text,
+                "status": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/fieldset/table/tbody/tr/td[1]/span[2]/span").text,
                 "last_visit": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[3]/td[2]").text,
                 "joined": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[2]/td[2]").text,
                 "time_spent_online": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[6]/td[2]").text,
@@ -319,9 +323,16 @@ class API(object):
         post_count = self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[4]/td[2]").text
         post_count = post_count.split('(')[0]
 
+        status = self.driver.find_elements_by_xpath("/html/body/div[3]/div/div[2]/fieldset/table/tbody/tr/td[1]/span[2]/a[1]/span")
+
+        if status:
+            status = "Online"
+        else:
+            status = "Offline"
+
         data = {
             "username": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/fieldset/table/tbody/tr/td[1]/span[1]/strong/span/strong").text,
-            "status": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/fieldset/table/tbody/tr/td[1]/span[2]/a[1]/span").text,
+            "status": status,
             "last_visit": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[3]/td[2]").text,
             "joined": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[2]/td[2]").text,
             "time_spent_online": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[6]/td[2]").text,
@@ -329,7 +340,8 @@ class API(object):
             "members_referred": self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[7]/td[2]").text,
             "thread_count": int(thread_count),
             "post_count": int(post_count),
-            "reputation": int(self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[8]/td[2]/strong").text)
+            "reputation": int(self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/table/tbody/tr/td[1]/table[1]/tbody/tr[8]/td[2]/strong").text),
+            "uid": self.uid_from_url.match(self.driver.current_url).groups()[0]
         }
 
         self.driver.get(self.url)
@@ -339,6 +351,42 @@ class API(object):
     @requires_login
     def reputation_read(self, username=None, uid=None):
         return self._get_profile(username, uid)['reputation']           
+
+    @requires_login
+    def post_count_read(self, username=None, uid=None):
+        return self._get_profile(username, uid)['post_count']
+
+    @requires_login
+    def thread_count_read(self, username=None, uid=None):
+        return self._get_profile(username, uid)['thread_count']
+
+    @requires_login
+    def referral_count_read(self, username=None, uid=None):
+        return self._get_profile(username, uid)['members_referred']
+
+    @requires_login
+    def signature_read(self, username=None, uid=None):
+        return self._get_profile(username, uid)['signature']
+
+    @requires_login
+    def time_spent_online_read(self, username=None, uid=None):
+        return self._get_profile(username, uid)['time_spent_online']
+
+    @requires_login
+    def join_date_read(self, username=None, uid=None):
+        return self._get_profile(username, uid)['joined']
+
+    @requires_login
+    def last_visit_read(self, username=None, uid=None):
+        return self._get_profile(username, uid)['last_visit']
+
+    @requires_login
+    def status_read(self, username=None, uid=None):
+        return self._get_profile(username, uid)['status']
+
+    @requires_login
+    def username_to_uid(self, username):
+        return self._get_profile(username)['uid']
 
     def close(self):
         # alias method for self.__del__()
