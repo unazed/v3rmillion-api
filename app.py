@@ -18,7 +18,7 @@ except ImportError:
 
 class API(object):
     """
-    Provides an interface to the https://www.v3rmillio.net/ website.
+    Provides an interface to the https://www.v3rmillion.net/ website.
     """
 
     driver = "Chrome"
