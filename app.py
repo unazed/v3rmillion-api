@@ -19,7 +19,7 @@ class API(object):
     Provides an interface to the https://www.v3rmillion.net/ website.
     """
 
-    driver = "Chrome"
+    driver = "PhantomJS"
     url = "https://v3rmillion.net/index.php"
     alerts_url = "https://v3rmillion.net/alerts.php"
     pm_url = "https://v3rmillion.net/private.php"
@@ -72,6 +72,10 @@ class API(object):
             input("INTERACTIVE (input): " + msg)
 
     def requires_login(func):
+        """
+        A decorator which is used to declare functions that can only be called
+        when the user is logged in.
+        """
         def wrapper(*args, **kwargs):
             if not args[0]._login:
                 raise PermissionError("Login first using the API.login(...) method")
@@ -79,6 +83,11 @@ class API(object):
         return wrapper
 
     def _recaptcha_login(self, username, password):
+        """
+        Protected function that is called by self.login() when the reCAPTCHA
+        has been done by the user, could cause a recursion error but only if
+        the user is really dumb.
+        """
         username_textbox = self.driver.find_element_by_name("username")
         username_textbox.send_keys(username + Keys.TAB)
 
@@ -101,6 +110,12 @@ class API(object):
                     self._recaptcha_login(username, password)
 
     def login(self, username, password):
+        """
+        Logs the user into V3rmillion, if there is a reCAPTCHA or the user
+        failed to input correct credentials they are inputted to redo the 
+        reCAPTCHA (if in interactive=True mode) or an exception is raised
+        for both events respectively.
+        """
         if self._login:
             self.iprint("Already logged in")
             return
@@ -143,6 +158,9 @@ class API(object):
     
     @requires_login
     def get_alert_count(self):
+        """
+        Get the amount of alerts the user has
+        """
         self.driver.refresh()
         try:
             alerts = int(self.driver.find_element_by_xpath("//span[contains(@class, 'alert_count alert_new')]").text)
@@ -152,6 +170,9 @@ class API(object):
 
     @requires_login
     def get_pm_count(self):
+        """
+        Get the PM count of the user
+        """
         self.driver.refresh()
         try:
             pms = int(self.driver.find_element_by_xpath("//span[contains(@class, 'pm_count pm_new')]").text)
@@ -161,6 +182,11 @@ class API(object):
     
     @requires_login
     def get_pm_alert_count(self):
+        """
+        Retrieve the PM and alert count of the user, to be used when
+        the API user doesn't want to refresh twice in order to obtain
+        the alert count and PM count as it is slower.
+        """
         self.driver.refresh()
         try:
             alerts = int(self.driver.find_element_by_xpath("//span[contains(@class, 'alert_count alert_new')]").text)
@@ -178,6 +204,11 @@ class API(object):
 
     @requires_login
     def get_latest_n_alerts(self, n):
+        """
+        Retrieve n amount of alerts upto (typically) 10 as
+        that is where the page cuts off and I doubt anyone
+        really wants to get alerts older than that.
+        """
         if n > self.max_alert_listing:
             raise IndexError("Can't retrieve more than %d alerts." % self.max_alert_listing)
 
@@ -203,12 +234,17 @@ class API(object):
         self.driver.get(self.url)  # restore position
 
     @requires_login
-    def pm_read(self, username, title, silent=False, debug=False):
+    def pm_read(self, username, title, silent=False):
+        """
+        Read a PM by a certain person and with a certain title,
+        the silent parameter returns False instead of raising any
+        exceptions.
+        """
         self.driver.get(self.pm_url)
         pms = self.driver.find_elements_by_xpath("/html/body/div[3]/div/div[2]/form/table/tbody/tr/td[2]/table/tbody/tr")[2:-1]
 
         if not pms:
-            if not silent and not debug:
+            if not silent:
                 raise LookupError("No PMs found in PM directory")
             return False
         
@@ -221,7 +257,7 @@ class API(object):
                 break
         
         if not _:
-            if not silent and not debug:
+            if not silent:
                 raise LookupError("No PMs found that match the parameters")
             return False
 
@@ -232,6 +268,12 @@ class API(object):
 
     @requires_login
     def pm_send(self, username, title, content):
+        """
+        Send a PM to a user with a title and a body content. The
+        username has to be more than two characters as dictated
+        by the website and the title and content have to be at
+        least 1 character.
+        """
         if not username[2:]:
             raise NameError("The name must be longer than 2 characters.")
         elif not title or not content:
@@ -265,6 +307,13 @@ class API(object):
         self.driver.get(self.url)
 
     def _get_profile(self, username=None, uid=None, page_depth=10):
+        """
+        Protected method for retrieving information from the given
+        UID's/username's profile. When a username is inputted it is
+        guaranteed to be slower than if a UID was inputted, especially
+        if the username is broad because it will take longer iterating
+        over results.
+        """
         if username is None and uid is None:
             raise Exception("Either provide a username or a UID")
 
@@ -350,52 +399,97 @@ class API(object):
 
     @requires_login
     def reputation_read(self, username=None, uid=None):
+        """
+        Read the reputation of a user.
+        """
         return self._get_profile(username, uid)['reputation']           
 
     @requires_login
     def post_count_read(self, username=None, uid=None):
+        """
+        Read the post count of a user.
+        """
         return self._get_profile(username, uid)['post_count']
 
     @requires_login
     def thread_count_read(self, username=None, uid=None):
+        """
+        Read the thread count of a user.
+        """
         return self._get_profile(username, uid)['thread_count']
 
     @requires_login
     def referral_count_read(self, username=None, uid=None):
+        """
+        Read the member referral count of a user.
+        """
         return self._get_profile(username, uid)['members_referred']
 
     @requires_login
     def signature_read(self, username=None, uid=None):
+        """
+        Read the signature of a user.
+        """
         return self._get_profile(username, uid)['signature']
 
     @requires_login
     def time_spent_online_read(self, username=None, uid=None):
+        """
+        Read the amount of time a user has spent online.
+        """
         return self._get_profile(username, uid)['time_spent_online']
 
     @requires_login
     def join_date_read(self, username=None, uid=None):
+        """
+        Read the join date of a user.
+        """
         return self._get_profile(username, uid)['joined']
 
     @requires_login
     def last_visit_read(self, username=None, uid=None):
+        """
+        Read the time that a user has last visited the website.
+        """
         return self._get_profile(username, uid)['last_visit']
 
     @requires_login
     def status_read(self, username=None, uid=None):
+        """
+        Read whether the user is online/offline.
+        """
         return self._get_profile(username, uid)['status']
 
     @requires_login
     def username_to_uid(self, username):
+        """
+        Convert a username to a UID which can help in caching
+        and making lookups faster.
+        """
         return self._get_profile(username)['uid']
 
-    def close(self):
-        # alias method for self.__del__()
+    @requires_login
+    def profile_read(self, username=None, uid=None):
+        """
+        Return all the properties of a user's profile.
+        """
+        return self._get_profile(username, uid)
 
+    def close(self):
+        """
+        Alias method for self.__del__(), doesn't need to be
+        called but it's nicer if it is.
+        """
         self.__del__()
 
     def __del__(self):
-        # possibly unsafe, needs experimentation
-
+        """
+        Overriden destructor which quits the webdriver if it
+        is still running, and sets self._webdriver_closed to
+        False so that if the user has already closed it the
+        garbage collector won't try to free a released
+        reference.
+        """
         if not self._webdriver_closed:
             self.driver.close()
             self._webdriver_closed = True
